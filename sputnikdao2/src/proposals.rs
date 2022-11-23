@@ -614,6 +614,7 @@ impl Contract {
             self.proposals
                 .insert(&id, &VersionedProposal::Default(proposal));
         }
+        // TODO: get json memo including aurora code bytes and an identifier that this is upgrade proposal
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
         }
