@@ -10,7 +10,7 @@ use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
     ONE_YOCTO_NEAR,
 };
-use crate::upgrade::{upgrade_remote, upgrade_using_factory};
+use crate::upgrade::{upgrade_remote, upgrade_using_factory, upgrade_self, upgrade_engine};
 use crate::*;
 
 /// Status of a proposal.
@@ -94,6 +94,13 @@ pub enum ProposalKind {
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
     SetStakingContract { staking_id: AccountId },
+    /// Stage Aurora engine code upgrade
+    StageUpgrade {
+        hash: Base58CryptoHash,
+        upgrade_id: u64,
+    },
+    /// Deploy Aurora engine code upgrade
+    DeployUpgrade { engine: AccountId,  upgrade_id: u64 },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -138,6 +145,8 @@ impl ProposalKind {
                 "policy_update_default_vote_policy"
             }
             ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
+            ProposalKind::StageUpgrade { .. } => "propose_aurora_code",
+            ProposalKind::DeployUpgrade { .. } => "upgrade_aurora_engine",
         }
     }
 }
@@ -407,6 +416,19 @@ impl Contract {
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
+            ProposalKind::StageUpgrade { hash, upgrade_id } => {
+                let hash = CryptoHash::from(hash.clone());
+                // set hash for upgrade id in checksums
+                self.upgrades.insert(upgrade_id, &hash);
+                PromiseOrValue::Value(())
+            },
+            ProposalKind::DeployUpgrade { engine, upgrade_id } => {
+                // Get hash from the upgrades checksum map
+                let hash  = self.upgrades.get(upgrade_id);
+                // execute the upgrade using deploy_upgrade
+                upgrade_engine(engine, &hash.unwrap().as_slice());
+                PromiseOrValue::Value(())
+            },
         };
         match result {
             PromiseOrValue::Promise(promise) => promise

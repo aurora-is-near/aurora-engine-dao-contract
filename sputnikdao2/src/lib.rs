@@ -35,6 +35,7 @@ pub enum StorageKeys {
     BountyClaimers,
     BountyClaimCounts,
     Blobs,
+    Upgrades,
 }
 
 /// After payouts, allows a callback
@@ -67,6 +68,11 @@ pub struct Contract {
     /// Proposal map from ID to proposal information.
     pub proposals: LookupMap<u64, VersionedProposal>,
 
+    /// Current upgrade index of Aurora engine
+    pub upgrade_index: u64,
+    /// Aurora engine code upgrade checksums
+    pub upgrades: LookupMap<u64, CryptoHash>,
+
     /// Last available id for the bounty.
     pub last_bounty_id: u64,
     /// Bounties map from ID to bounty information.
@@ -98,6 +104,8 @@ impl Contract {
             bounty_claims_count: LookupMap::new(StorageKeys::BountyClaimCounts),
             blobs: LookupMap::new(StorageKeys::Blobs),
             locked_amount: 0,
+            upgrade_index: 0,
+            upgrades: LookupMap::new(StorageKeys::Upgrades),
         };
         internal_set_factory_info(&FactoryInfo {
             factory_id: env::predecessor_account_id(),
@@ -170,6 +178,7 @@ pub extern "C" fn store_blob() {
     env::value_return(&blob_hash_str);
     env::state_write(&contract);
 }
+
 
 #[cfg(test)]
 mod tests {

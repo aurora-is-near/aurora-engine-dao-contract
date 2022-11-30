@@ -127,6 +127,20 @@ pub(crate) fn upgrade_self(hash: &[u8]) {
     );
 }
 
+#[allow(dead_code)]
+pub(crate) fn upgrade_engine(engine: &AccountId, hash: &[u8]) {
+    let input = env::storage_read(hash).expect("ERR_NO_HASH");
+    let promise_id = env::promise_batch_create(&engine);
+    env::promise_batch_action_deploy_contract(promise_id, &input);
+    env::promise_batch_action_function_call(
+        promise_id,
+        "migrate",
+        &[],
+        NO_DEPOSIT,
+        env::prepaid_gas() - env::used_gas() - GAS_FOR_UPGRADE_SELF_DEPLOY,
+    );
+}
+
 pub(crate) fn upgrade_remote(receiver_id: &AccountId, method_name: &str, hash: &[u8]) {
     let input = env::storage_read(hash).expect("ERR_NO_HASH");
     let promise_id = env::promise_batch_create(receiver_id);
