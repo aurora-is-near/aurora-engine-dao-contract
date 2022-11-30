@@ -10,7 +10,7 @@ use crate::types::{
     convert_old_to_new_token, Action, Config, OldAccountId, GAS_FOR_FT_TRANSFER, OLD_BASE_TOKEN,
     ONE_YOCTO_NEAR,
 };
-use crate::upgrade::{upgrade_remote, upgrade_using_factory};
+use crate::upgrade::{upgrade_engine, upgrade_remote, upgrade_using_factory};
 use crate::*;
 
 /// Status of a proposal.
@@ -94,6 +94,15 @@ pub enum ProposalKind {
     },
     /// Sets staking contract. Can only be proposed if staking contract is not set yet.
     SetStakingContract { staking_id: AccountId },
+    /// Sets Aurora engine contract. Can only proposed if engine contract is not set yet.
+    SetEngineContract { engine_id: AccountId },
+    /// Stage Aurora engine code upgrade
+    StageUpgrade {
+        hash: Base58CryptoHash,
+        upgrade_id: u64,
+    },
+    /// Deploy Aurora engine code upgrade
+    DeployUpgrade { upgrade_id: u64 },
     /// Add new bounty.
     AddBounty { bounty: Bounty },
     /// Indicates that given bounty is done by given user.
@@ -138,6 +147,9 @@ impl ProposalKind {
                 "policy_update_default_vote_policy"
             }
             ProposalKind::ChangePolicyUpdateParameters { .. } => "policy_update_parameters",
+            ProposalKind::StageUpgrade { .. } => "propose_aurora_code",
+            ProposalKind::DeployUpgrade { .. } => "upgrade_aurora_engine",
+            ProposalKind::SetEngineContract { .. } => "set_engine_contract",
         }
     }
 }
@@ -407,6 +419,26 @@ impl Contract {
                 self.policy.set(&VersionedPolicy::Current(new_policy));
                 PromiseOrValue::Value(())
             }
+            ProposalKind::SetEngineContract { engine_id } => {
+                assert!(self.engine_id.is_none(), "ERR_INVALID_STAKING_CHANGE");
+                self.staking_id = Some(engine_id.clone().into());
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::StageUpgrade { hash, upgrade_id } => {
+                let hash = CryptoHash::from(hash.clone());
+                // set hash for upgrade id in checksums
+                self.upgrades.insert(upgrade_id, &hash);
+                PromiseOrValue::Value(())
+            }
+            ProposalKind::DeployUpgrade {  upgrade_id } => {
+                assert!(self.engine_id.is_some(), "ERR_ENGINE_NOT_SET");
+                // Get hash from the upgrades checksum map
+                let hash = self.upgrades.get(upgrade_id);
+                let engine  = self.engine_id.as_ref().unwrap();
+                // execute the upgrade using deploy_upgrade
+                upgrade_engine(engine, &hash.unwrap().as_slice());
+                PromiseOrValue::Value(())
+            }
         };
         match result {
             PromiseOrValue::Promise(promise) => promise
@@ -509,6 +541,21 @@ impl Contract {
             ProposalKind::SetStakingContract { .. } => assert!(
                 self.staking_id.is_none(),
                 "ERR_STAKING_CONTRACT_CANT_CHANGE"
+            ),
+            ProposalKind::SetEngineContract { .. } => {
+                assert!(self.engine_id.is_none(), "ERR_ENGINE_CONTRACT_CANT_CHANGE")
+            }
+            ProposalKind::StageUpgrade { hash, upgrade_id } => {
+                let hash = CryptoHash::from(hash.clone());
+                assert!(self.blobs.get(&hash).is_some(), "ERR_NO_BLOB");
+                assert!(
+                    self.upgrade_index < *upgrade_id,
+                    "ERR_DEPRECATED_UPGRADE_ID"
+                );
+            }
+            ProposalKind::DeployUpgrade { upgrade_id } => assert!(
+                self.upgrade_index < *upgrade_id,
+                "ERR_DEPRECATED_UPGRADE_ID"
             ),
             // TODO: add more verifications.
             _ => {}
@@ -614,6 +661,7 @@ impl Contract {
             self.proposals
                 .insert(&id, &VersionedProposal::Default(proposal));
         }
+        // TODO: get json memo including aurora code bytes and an identifier that this is upgrade proposal
         if let Some(memo) = memo {
             log!("Memo: {}", memo);
         }

@@ -131,13 +131,13 @@ export COUNCIL='["council-member.testnet", "YOUR_ACCOUNT.testnet"]'
 - Configure the name, purpose, and initial council members of the DAO and convert the arguments in base64:
 
 ```bash
-export ARGS=`echo '{"config": {"name": "genesis", "purpose": "Genesis DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
+export ARGS=`echo '{"config": {"name": "aurora-internal-test", "purpose": "Aurora internal test DAO", "metadata":""}, "policy": '$COUNCIL'}' | base64`
 ```
 
 - Create the new DAO!:
 
 ```bash
-near call $CONTRACT_ID create "{\"name\": \"genesis\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 10 --gas 150000000000000
+near call $CONTRACT_ID create "{\"name\": \"aurora-internal-test\", \"args\": \"$ARGS\"}" --accountId $CONTRACT_ID --amount 10 --gas 150000000000000
 ```
 
 **Example Response:**
@@ -159,12 +159,12 @@ true
 <summary>7. Verify successful deployment and policy configuration.</summary>
 <p>
 
-The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `genesis.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it.
+The DAO deployment will create a new [sub-account](https://docs.near.org/docs/concepts/account#subaccounts) ( `aurora-internal-test.YOUR_ACCOUNT.testnet` ) and deploy a Sputnik v2 DAO contract to it.
 
 - Setup another env variable for your DAO contract:
 
 ```bash
-export SPUTNIK_ID=genesis.$CONTRACT_ID
+export SPUTNIK_ID=aurora-internal-test.$CONTRACT_ID
 ```
 
 - Now call `get_policy` on this contract using [`near view`](https://docs.near.org/docs/tools/near-cli#near-view)
@@ -582,3 +582,6 @@ There are two major ways to upgrade the DAO:
  - Upgrade from the factory - factory stores new contract and then, if allowed, it upgrades the DAO by calling `upgrade(code)`.
 
 DAOs can explicitly vote to disable factory auto upgrades and can pull the upgrade themselves from the factory.
+
+### Upgrading Engine
+
