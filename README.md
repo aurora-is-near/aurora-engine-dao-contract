@@ -582,3 +582,6 @@ There are two major ways to upgrade the DAO:
  - Upgrade from the factory - factory stores new contract and then, if allowed, it upgrades the DAO by calling `upgrade(code)`.
 
 DAOs can explicitly vote to disable factory auto upgrades and can pull the upgrade themselves from the factory.
+
+### Upgrading Engine
+

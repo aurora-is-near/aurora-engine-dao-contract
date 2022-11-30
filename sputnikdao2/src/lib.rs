@@ -68,6 +68,8 @@ pub struct Contract {
     /// Proposal map from ID to proposal information.
     pub proposals: LookupMap<u64, VersionedProposal>,
 
+    /// Engine contranct account id.
+    pub engine_id: Option<AccountId>,
     /// Current upgrade index of Aurora engine
     pub upgrade_index: u64,
     /// Aurora engine code upgrade checksums
@@ -94,6 +96,7 @@ impl Contract {
             config: LazyOption::new(StorageKeys::Config, Some(&config)),
             policy: LazyOption::new(StorageKeys::Policy, Some(&policy.upgrade())),
             staking_id: None,
+            engine_id: None,
             total_delegation_amount: 0,
             delegations: LookupMap::new(StorageKeys::Delegations),
             last_proposal_id: 0,
